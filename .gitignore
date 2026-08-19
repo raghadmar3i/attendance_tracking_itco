@@ -1,0 +1,53 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- YOLO / model weights & training artifacts ---
+*.pt
+*.pth
+*.onnx
+*.engine
+*.weights
+runs/
+weights/
+*.cache
+detect/
+train/
+predict/
+
+# --- Datasets / media (usually too large / not meant for git) ---
+datasets/
+data/
+*.mp4
+*.avi
+*.mov
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
+!docs/**/*.jpg
+
+# --- Logs ---
+*.log
+logs/
+
+# --- OS / editor junk ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
