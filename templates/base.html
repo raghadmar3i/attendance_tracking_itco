@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Clinic Attendance{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="{{ url_for('index') }}">
+        <span class="brand-mark">IT</span>
+        <span><strong>ITCO Clinic</strong><small>Attendance control</small></span>
+      </a>
+      <nav>
+        <a class="{{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">Overview</a>
+        <a class="{{ 'active' if request.endpoint == 'sessions_page' }}" href="{{ url_for('sessions_page') }}">Attendance</a>
+        <a class="{{ 'active' if request.endpoint == 'camera_page' }}" href="{{ url_for('camera_page') }}">Live camera</a>
+        <a class="{{ 'active' if request.endpoint == 'employees_page' }}" href="{{ url_for('employees_page') }}">Employees</a>
+        <a class="{{ 'active' if request.endpoint == 'flagged_page' }}" href="{{ url_for('flagged_page') }}">Flagged faces</a>
+        <a class="{{ 'active' if request.endpoint == 'reports_page' }}" href="{{ url_for('reports_page') }}">Reports</a>
+      </nav>
+      <form action="{{ url_for('logout') }}" method="post" class="logout-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="text-button" type="submit">Sign out</button>
+      </form>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">ADMIN DASHBOARD</p>
+          <h1>{% block heading %}Overview{% endblock %}</h1>
+        </div>
+        <div class="live"><span></span> Firebase connected</div>
+      </header>
+      {% for category, message in get_flashed_messages(with_categories=true) %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

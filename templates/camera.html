@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Live camera · Clinic Attendance{% endblock %}
+{% block heading %}Live detection camera{% endblock %}
+{% block content %}
+<section class="camera-layout">
+  <article class="panel camera-panel">
+    <div class="panel-heading"><div><p class="eyebrow">CAMERA SOURCE</p><h2>Face detection and recognition</h2></div><span id="camera-status" class="badge {{ camera.status }}">{{ camera.status }}</span></div>
+    <div class="camera-stage">
+      {% if camera.status in ['running', 'starting'] %}<img id="camera-feed" src="{{ url_for('camera_feed') }}" alt="Live face detection stream">{% else %}<div id="camera-placeholder" class="camera-placeholder"><strong>Camera is stopped</strong><span>Start detection to view the annotated stream.</span></div><img id="camera-feed" alt="Live face detection stream" hidden>{% endif %}
+    </div>
+    <div id="camera-error" class="camera-error" {{ 'hidden' if not camera.error }}>{{ camera.error or '' }}</div>
+    <div class="camera-controls">
+      <form method="post" action="{{ url_for('start_camera') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="primary" type="submit" {{ 'disabled' if camera.status in ['running','starting'] }}>Start camera</button></form>
+      <form method="post" action="{{ url_for('stop_camera') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="danger" type="submit" {{ 'disabled' if camera.status == 'stopped' }}>Stop camera</button></form>
+    </div>
+  </article>
+  <aside class="panel camera-help"><p class="eyebrow">CHECKPOINT MODE</p><h2>Entry and exit</h2><div><span class="legend-box known"></span><p><strong>Recognized employee</strong><small>First distinct scan checks in; the next checks out; a later scan checks in again.</small></p></div><div><span class="legend-box unknown"></span><p><strong>Unknown face</strong><small>Sent to the flagged-face review queue.</small></p></div><p class="camera-note">Employees must present their face when entering and leaving. Move out of view after a scan. A 30-second cooldown prevents accidental duplicate events.</p><p class="camera-note">Only one process can normally use the laptop camera. Stop <code>main.py</code> before starting this browser camera.</p></aside>
+</section>
+<script>
+const statusUrl={{ url_for('camera_status')|tojson }};
+const feedUrl={{ url_for('camera_feed')|tojson }};
+setInterval(async()=>{try{const data=await fetch(statusUrl).then(r=>r.json());const badge=document.getElementById('camera-status');badge.textContent=data.status;badge.className='badge '+data.status;const error=document.getElementById('camera-error');error.textContent=data.error||'';error.hidden=!data.error;if(data.status==='running'){const image=document.getElementById('camera-feed');if(image.hidden){image.src=feedUrl+'?t='+Date.now();image.hidden=false;document.getElementById('camera-placeholder')?.remove();}}}catch(_error){}},1500);
+</script>
+{% endblock %}

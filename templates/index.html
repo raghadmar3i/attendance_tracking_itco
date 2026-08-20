@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Overview · Clinic Attendance{% endblock %}
+{% block content %}
+<div class="quick-action"><div><p class="eyebrow">LIVE MONITORING</p><strong>Open face detection camera</strong></div><a class="primary button-link" href="{{ url_for('camera_page') }}">Open camera</a></div>
+<section class="metric-grid">
+  <article class="metric"><span>Active employees</span><strong>{{ metrics.employees }}</strong><small>Enrolled staff</small></article>
+  <article class="metric accent"><span>Currently present</span><strong>{{ metrics.present }}</strong><small>Open sessions</small></article>
+  <article class="metric"><span>Hours achieved</span><strong>{{ metrics.achieved }}</strong><small>Employees today</small></article>
+  <article class="metric warning"><span>Needs review</span><strong>{{ metrics.flagged }}</strong><small>Unknown faces</small></article>
+</section>
+<section class="two-column">
+  <article class="panel">
+    <div class="panel-heading"><div><p class="eyebrow">TODAY</p><h2>Employee status</h2></div><a href="{{ url_for('reports_page') }}">View reports</a></div>
+    <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Worked</th><th>Required</th><th>Status</th></tr></thead><tbody>
+      {% for row in rows %}<tr><td><strong>{{ row.name }}</strong><small>{{ row.employee_id }}</small></td><td>{{ row.worked_hours }} h</td><td>{{ row.required_hours }} h</td><td><span class="badge {{ row.status|lower }}">{{ row.status.replace('_', ' ') }}</span></td></tr>
+      {% else %}<tr><td colspan="4" class="empty">No employees enrolled.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </article>
+  <article class="panel">
+    <div class="panel-heading"><div><p class="eyebrow">ACTIVITY</p><h2>Recent sessions</h2></div><a href="{{ url_for('sessions_page') }}">View all</a></div>
+    <div class="activity-list">
+      {% for item in recent %}<div class="activity"><span class="activity-dot {{ item.status }}"></span><div><strong>{{ item.name }}</strong><small>{{ item.check_in|datetime_local }}</small></div><span class="badge {{ item.status }}">{{ item.status }}</span></div>
+      {% else %}<p class="empty">No attendance sessions yet.</p>{% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}

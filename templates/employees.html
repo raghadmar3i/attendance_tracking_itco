@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Employees · Clinic Attendance{% endblock %}
+{% block heading %}Employees{% endblock %}
+{% block content %}
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">WORK POLICIES</p><h2>Employee schedules</h2></div><span class="muted">Monday = 0, Sunday = 6</span></div>
+<div class="employee-grid">
+{% for user in users %}<form class="employee-card" method="post" action="{{ url_for('update_employee', user_id=user.user_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="avatar">{{ user.full_name[:1]|upper }}</div><div class="employee-title"><h3>{{ user.full_name }}</h3><small>{{ user.user_id }}</small></div>
+  <label>Required hours<input type="number" name="required_daily_hours" min="0" max="24" step="0.25" value="{{ user.required_daily_hours }}" required></label>
+  <fieldset><legend>Working days</legend><div class="day-pills">{% for day, label in [(0,'M'),(1,'T'),(2,'W'),(3,'T'),(4,'F'),(5,'S'),(6,'S')] %}<label><input type="checkbox" name="working_weekdays" value="{{ day }}" {{ 'checked' if day in user.working_weekdays }}><span>{{ label }}</span></label>{% endfor %}</div></fieldset>
+  <label class="toggle"><input type="checkbox" name="active" {{ 'checked' if user.active }}><span></span>Active employee</label>
+  <button class="secondary" type="submit">Save policy</button>
+</form>{% else %}<p class="empty">No employees enrolled.</p>{% endfor %}
+</div></section>
+{% endblock %}

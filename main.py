@@ -7,6 +7,7 @@ import config
 from firebase_db import FirebaseDB
 from face_detector import FaceDetector
 from face_recognizer import FaceRecognizer
+from entry_exit_manager import EntryExitManager
 from tracker import CentroidTracker
 from video_stream import VideoStream
 
@@ -20,6 +21,7 @@ def main():
     detector = FaceDetector()
     recognizer = FaceRecognizer(ids, names, embeddings)
     tracker = CentroidTracker()
+    entry_exit = EntryExitManager(db)
 
     cap = VideoStream(config.CAMERA_SOURCE)
     frame_idx = 0
@@ -65,19 +67,44 @@ def main():
                 )
                 if should_attempt:
                     emb = recognizer.get_embedding(crop)
-                    if emb is not None:
+                    if emb is None:
+                        # YOLO found a face-shaped region, but InsightFace could
+                        # not extract a usable embedding. Treat it as unknown
+                        # instead of silently leaving the track uncategorized.
+                        track.recognized_name = "Unknown"
+                        db.log_flagged(tid, 0.0, crop, datetime.datetime.utcnow())
+                        track.last_logged_time = now
+                        print(
+                            f"[FLAGGED] Track {tid}: no usable face embedding"
+                        )
+                    else:
                         emp_id, name, sim = recognizer.recognize(emb)
 
                         if emp_id is not None:
                             track.recognized_id = emp_id
                             track.recognized_name = name
-                            db.log_attendance(emp_id, name, sim, datetime.datetime.utcnow())
+                            track.recognition_confidence = sim
+                            event, _ = entry_exit.toggle(
+                                emp_id,
+                                name,
+                                sim,
+                                datetime.datetime.now(datetime.timezone.utc),
+                            )
+                            track.attendance_event = event
                             track.last_logged_time = now
-                            print(f"[LOGGED] Track {tid}: {name} ({sim:.2f})")
+                            print(
+                                f"[RECOGNIZED] Track {tid}: {name} "
+                                f"({sim:.2f}), event={event}"
+                            )
                         else:
+                            track.recognized_name = "Unknown"
                             db.log_flagged(tid, sim, crop, datetime.datetime.utcnow())
                             track.last_logged_time = now
-                            print(f"[FLAGGED] Track {tid}: sim={sim:.2f}")
+                            print(
+                                f"[FLAGGED] Track {tid}: unknown face, "
+                                f"best similarity={sim:.2f} "
+                                f"(required={config.RECOGNITION_SIM_THRESHOLD:.2f})"
+                            )
 
         # Draw every currently active track on every frame (not just frames
         # where we ran detection) so the box doesn't flicker between frames.
@@ -89,6 +116,8 @@ def main():
                 continue
             color = (0, 255, 0) if track.recognized_id else (0, 0, 255)
             label = track.recognized_name or f"ID {tid}"
+            if track.attendance_event in {"entry", "exit"}:
+                label += f" · {track.attendance_event.upper()}"
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 

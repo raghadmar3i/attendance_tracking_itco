@@ -22,17 +22,23 @@ existing enrollment process and treat this script as a fallback/reference.
 """
 import sys
 
+import config
 import cv2
 from insightface.app import FaceAnalysis
 from google.cloud import firestore as gcf
 
-import config
 from firebase_db import FirebaseDB
 
 
 def enroll(image_path, user_id, full_name):
-    app = FaceAnalysis(name=config.INSIGHTFACE_MODEL_NAME)
-    app.prepare(ctx_id=0, det_size=(640, 640))
+    app = FaceAnalysis(
+        name=config.INSIGHTFACE_MODEL_NAME,
+        root=config.INSIGHTFACE_MODEL_ROOT,
+        providers=["CPUExecutionProvider"]
+        if config.INSIGHTFACE_CTX_ID < 0
+        else None,
+    )
+    app.prepare(ctx_id=config.INSIGHTFACE_CTX_ID, det_size=(640, 640))
 
     img = cv2.imread(image_path)
     if img is None:
@@ -50,6 +56,7 @@ def enroll(image_path, user_id, full_name):
     db.db.collection(config.FIRESTORE_USERS_COLLECTION).document(user_id).set({
         "full_name": full_name,
         "embedding": embedding,
+        "face_reference_count": 1,
         "sample_count": 1,
         "updated_at": gcf.SERVER_TIMESTAMP,
         "user_id": user_id,

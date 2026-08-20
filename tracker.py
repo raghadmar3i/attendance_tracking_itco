@@ -10,6 +10,8 @@ class Track:
         self.last_seen = time.time()
         self.recognized_id = None       # set once confidently recognized
         self.recognized_name = None
+        self.recognition_confidence = 0.0
+        self.attendance_event = None
         self.last_logged_time = 0.0     # last time we wrote to Firestore for this track
         self.misses = 0
 

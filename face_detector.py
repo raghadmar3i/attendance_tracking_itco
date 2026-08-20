@@ -1,6 +1,5 @@
-from ultralytics import YOLO
-
 import config
+from ultralytics import YOLO
 
 
 class FaceDetector:

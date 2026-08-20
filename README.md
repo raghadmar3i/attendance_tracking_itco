@@ -1,90 +1,186 @@
-# Facial Recognition Attendance System
+# Clinic Facial-Recognition Attendance System
 
-Pipeline: **YOLOv11s** (face detection) -> **IoU tracker** (stable per-face ID)
--> **InsightFace** (embedding + recognition against Firestore) -> **Firestore /
-Firebase Storage** (attendance logs + flagged low-confidence crops).
+The system detects and tracks faces from a laptop camera or CCTV stream, matches
+them against enrolled employees, creates check-in/check-out sessions, calculates
+worked hours, flags unknown faces, and generates daily, weekly, and monthly CSV
+and Firestore reports.
 
-## 1. Setup
+## Setup
 
-```bash
-pip install -r requirements.txt
+The repository's long OneDrive path can exceed the Windows path limit while
+installing PyTorch. Use a short-path environment:
+
+```powershell
+python -m venv C:\tmp\itco-attendance-venv
+C:\tmp\itco-attendance-venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-- Put your trained YOLOv11s weights at `models/yolov11s_face.pt` (or set
-  `YOLO_MODEL_PATH` env var).
-- Download a Firebase service account key (Project Settings -> Service
-  Accounts -> Generate new private key) and save it as
-  `firebase_credentials.json` (or set `FIREBASE_CRED_PATH`).
-- Set `FIREBASE_STORAGE_BUCKET` in `config.py` to your project's storage
-  bucket (usually `<project-id>.appspot.com`), used for flagged-face images.
+Required local assets (already installed in this workspace):
 
-## 2. Firestore schema
+- `models/yolov11_detection.pt`
+- `firebase_credentials.json`
 
-**`employees` collection** (one doc per person, doc ID = employee ID):
+Both are ignored by Git. Never commit the Firebase service-account key.
+
+## Employee enrollment and schedule
+
+Enroll a person from a clear, front-facing photograph:
+
+```powershell
+C:\tmp\itco-attendance-venv\Scripts\python.exe enroll.py photos\jane.jpg EMP001 "Jane Doe"
+```
+
+The `users/{user_id}` Firestore document supports:
+
 ```json
 {
-  "name": "Jane Doe",
-  "embedding": [0.0123, -0.045, ...]   // 512 floats from InsightFace
+  "user_id": "EMP001",
+  "full_name": "Jane Doe",
+  "embedding": [0.0123, -0.045],
+  "required_daily_hours": 8,
+  "working_weekdays": [0, 1, 2, 3, 4],
+  "active": true
 }
 ```
 
-**`attendance_logs`** (auto-generated doc IDs, one per confirmed recognition):
+Weekday numbers follow Python conventions: Monday is `0`, Sunday is `6`.
+Missing schedule fields default to eight hours, Monday through Friday.
+
+## Run attendance monitoring
+
+```powershell
+C:\tmp\itco-attendance-venv\Scripts\python.exe main.py
+```
+
+Press `q` to stop. A recognized employee receives a green label. The camera is
+used as an entry/exit checkpoint: the first distinct scan checks the employee
+in, the next distinct scan checks them out, and a later scan starts another
+visit. Repeated frames from the same appearance do not create extra events.
+The employee should present their face to the checkpoint both when entering
+and when leaving.
+
+Unknown faces receive a red `Unknown` label and are stored privately under
+`flagged/` in Firebase Storage, with metadata in `flagged_faces`.
+
+## Admin dashboard
+
+Set a private admin password in the current PowerShell window and start the
+dashboard:
+
+```powershell
+$env:ADMIN_USERNAME="admin"
+$env:ADMIN_PASSWORD="replace-this-with-a-strong-password"
+$env:DASHBOARD_SECRET_KEY="replace-this-with-a-long-random-secret"
+C:\tmp\itco-attendance-venv\Scripts\python.exe dashboard.py
+```
+
+Open `http://127.0.0.1:5000` in a browser. The dashboard provides:
+
+- Current attendance and daily-hour metrics
+- Browser-based live camera detection with Start/Stop controls
+- Full check-in/check-out session history
+- Employee required-hours, workday, and active-status editing
+- Authenticated review of private flagged-face images
+- Labeling a flagged face as an employee to add another recognition reference
+- Permanent deletion of unwanted flagged images and their Firestore metadata
+- Daily, weekly, and monthly report generation
+- CSV report downloads and Firestore report history
+
+`ADMIN_PASSWORD` is mandatory; the server will not accept a login when it is
+missing. Keep all three values out of Git. The built-in Flask server is suitable
+for local development. A clinic deployment should run behind HTTPS using a
+production WSGI server and restrict access to the clinic network or VPN.
+
+Open **Live camera** from the sidebar or use the **Open camera** button on the
+overview page. The browser stream runs the same detection, recognition,
+attendance-session, and unknown-face pipeline as `main.py`. Normally only one
+process can own the laptop camera, so do not run `main.py` and the dashboard
+camera simultaneously.
+
+When an admin labels a flagged face, the system extracts an InsightFace
+embedding and stores it as one of up to ten recognition references for that
+employee. It does not retrain the YOLO detector: YOLO only finds faces, while
+the employee-specific references improve identity matching. Camera processes
+reload these references from Firestore within one minute. Only label clear,
+correct face crops; a wrong label directly reduces recognition accuracy.
+
+## Firestore attendance sessions
+
+Each `attendance_sessions` document contains:
+
 ```json
 {
   "employee_id": "EMP001",
   "name": "Jane Doe",
-  "confidence": 0.71,
-  "timestamp": "2026-08-11T09:03:12Z"
+  "check_in": "Firestore timestamp",
+  "check_out": "Firestore timestamp or null",
+  "last_seen": "Firestore timestamp",
+  "duration_seconds": 28800,
+  "status": "open or closed",
+  "recognition_confidence": 0.71,
+  "camera_source": "0"
 }
 ```
 
-**`flagged_faces`** (low-confidence detections for human review):
-```json
-{
-  "track_id": 14,
-  "confidence": 0.31,
-  "image_url": "https://storage.googleapis.com/.../flagged/14_....jpg",
-  "timestamp": "2026-08-11T09:04:55Z",
-  "reviewed": false
-}
+Open sessions remain open across camera or dashboard restarts because stopping
+the software does not mean the employee left the clinic. On the next distinct
+scan, the existing open session is checked out normally.
+
+## Reports
+
+Generate reports for the current Dubai-local day, week, or month:
+
+```powershell
+C:\tmp\itco-attendance-venv\Scripts\python.exe report_generator.py daily
+C:\tmp\itco-attendance-venv\Scripts\python.exe report_generator.py weekly
+C:\tmp\itco-attendance-venv\Scripts\python.exe report_generator.py monthly
 ```
 
-## 3. Enroll people
+Generate a historical period using any date inside that period:
 
-```bash
-python enroll.py photos/jane.jpg EMP001 "Jane Doe"
+```powershell
+C:\tmp\itco-attendance-venv\Scripts\python.exe report_generator.py weekly --date 2026-08-17
 ```
 
-Run this once per person, ideally with a clear front-facing photo. This
-populates the `employees` collection that `main.py` reads at startup.
+Each report creates a formatted Excel workbook and a clean CSV in `reports/`,
+then saves a snapshot to the `attendance_reports` Firestore collection. The
+Excel workbook contains an **Attendance Summary** sheet with color-coded status
+and readable hour durations, plus an **Entry Exit Details** sheet listing every
+visit and its exact entry, exit, duration, and recognition confidence. Employees
+with no attendance are included, multiple visits are summed, and sessions
+crossing midnight are divided between the correct local days. Use
+`--local-only` to skip the Firestore report snapshot.
 
-## 4. Run the live system
+## CCTV configuration
 
-```bash
-python main.py
+The laptop camera is `CAMERA_SOURCE = 0` in `config.py`. For an IP camera, set
+an RTSP or HTTP URL, preferably through an environment variable or a secure
+deployment configuration. Example source value:
+
+```text
+rtsp://camera-host:554/stream
 ```
 
-Opens the default webcam (`CAMERA_SOURCE = 0` in `config.py` — change to an
-RTSP/HTTP URL for an IP camera), draws green boxes for recognized faces and
-red boxes for unrecognized/flagged ones, and logs to Firestore as described
-above. Press `q` to quit.
+Do not put camera passwords in Git.
 
-## 5. Key thresholds to tune (in `config.py`)
+For the laptop demonstration, each distinct face presentation alternates the
+employee between entered and exited states. In production, place the checkpoint
+camera at the clinic entrance and require employees to face it in both
+directions. Fully automatic entry/exit without deliberate scans requires a
+calibrated doorway line and direction tracking.
 
-- `DETECTION_CONF_THRESHOLD` — YOLO detection confidence.
-- `RECOGNITION_SIM_THRESHOLD` — cosine similarity cutoff for a "confident"
-  match. Start at 0.45 and adjust based on false-accept/false-reject rates
-  on your own footage — this matters more than any other setting.
-- `RE_LOG_COOLDOWN_SECONDS` — prevents duplicate logs/flags for the same
-  person within a short window.
-- `FRAME_SKIP` — trade off latency vs. CPU/GPU load.
+## Main configuration
 
-## Next steps worth considering
+- `CLINIC_TIMEZONE`: defaults to `Asia/Dubai`.
+- `DEFAULT_REQUIRED_DAILY_HOURS`: defaults to `8`.
+- `DEFAULT_WORKING_WEEKDAYS`: defaults to `0,1,2,3,4`.
+- `ENTRY_EXIT_COOLDOWN_SECONDS`: ignores accidental repeated scans, defaults to `30`.
+- `RECOGNITION_SIM_THRESHOLD`: recognition cutoff, defaults to `0.45`.
+- `FRAME_SKIP`: detection frequency/performance tradeoff.
+- `CAMERA_SOURCE`: laptop camera index or CCTV stream URL.
 
-- Move Firestore/Storage writes onto a background thread or queue so they
-  never block the camera loop.
-- Swap the IoU tracker for ByteTrack/DeepSORT if people cross paths often.
-- Add a liveness/anti-spoof check before logging a match.
-- Batch-refresh the embedding cache on a schedule (already stubbed via
-  `EMBEDDING_CACHE_REFRESH_SECONDS`) so new enrollments show up without a
-  restart — already wired into `main.py`.
+## Tests
+
+```powershell
+C:\tmp\itco-attendance-venv\Scripts\python.exe -m unittest discover -s tests -v
+```

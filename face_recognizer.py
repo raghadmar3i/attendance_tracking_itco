@@ -1,13 +1,16 @@
 import numpy as np
-from insightface.app import FaceAnalysis
-
 import config
+from insightface.app import FaceAnalysis
 
 
 class FaceRecognizer:
     def __init__(self, known_ids, known_names, known_embeddings, ctx_id=None):
         ctx_id = config.INSIGHTFACE_CTX_ID if ctx_id is None else ctx_id
-        self.app = FaceAnalysis(name=config.INSIGHTFACE_MODEL_NAME)
+        self.app = FaceAnalysis(
+            name=config.INSIGHTFACE_MODEL_NAME,
+            root=config.INSIGHTFACE_MODEL_ROOT,
+            providers=["CPUExecutionProvider"] if ctx_id < 0 else None,
+        )
         self.app.prepare(ctx_id=ctx_id, det_size=(640, 640))
         print(f"[FaceRecognizer] ctx_id={ctx_id} ({'GPU' if ctx_id >= 0 else 'CPU'})")
         self.set_known(known_ids, known_names, known_embeddings)

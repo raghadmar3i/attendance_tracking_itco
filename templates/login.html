@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin sign in</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
+<body class="login-page">
+  <section class="login-card">
+    <div class="brand login-brand"><span class="brand-mark">IT</span><span><strong>ITCO Clinic</strong><small>Attendance control</small></span></div>
+    <p class="eyebrow">SECURE ADMIN ACCESS</p>
+    <h1>Welcome back</h1>
+    <p class="muted">Sign in to manage employee attendance and reports.</p>
+    {% for category, message in get_flashed_messages(with_categories=true) %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
+    <form method="post" class="form-stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Username<input name="username" autocomplete="username" required></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <button class="primary" type="submit">Sign in</button>
+    </form>
+  </section>
+</body>
+</html>

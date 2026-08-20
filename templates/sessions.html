@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Attendance · Clinic Attendance{% endblock %}
+{% block heading %}Attendance sessions{% endblock %}
+{% block content %}
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">SESSION HISTORY</p><h2>Check-ins and check-outs</h2></div><span class="muted">{{ sessions|length }} sessions</span></div>
+<div class="table-wrap"><table><thead><tr><th>Employee</th><th>Check in</th><th>Check out</th><th>Duration</th><th>Status</th><th>Confidence</th></tr></thead><tbody>
+{% for item in sessions %}<tr><td><strong>{{ item.name }}</strong><small>{{ item.employee_id }}</small></td><td>{{ item.check_in|datetime_local }}</td><td>{{ item.check_out|datetime_local }}</td><td>{{ item|session_hours }}</td><td><span class="badge {{ item.status }}">{{ item.status }}</span></td><td>{{ '%.0f%%'|format((item.recognition_confidence or 0) * 100) }}</td></tr>
+{% else %}<tr><td colspan="6" class="empty">No attendance sessions yet.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

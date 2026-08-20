@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Reports · Clinic Attendance{% endblock %}
+{% block heading %}Reports{% endblock %}
+{% block content %}
+<section class="panel report-builder">
+  <div><p class="eyebrow">NEW REPORT</p><h2>Generate attendance report</h2><p class="muted">Creates a formatted Excel workbook, a clean CSV, and a Firestore snapshot.</p></div>
+  <form method="post" action="{{ url_for('generate_report') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Period<select name="period"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
+    <label>Anchor date<input type="date" name="date" required value="{{ now_date }}"></label>
+    <button class="primary" type="submit">Generate report</button>
+  </form>
+</section>
+<section class="panel">
+  <div class="panel-heading"><div><p class="eyebrow">ARCHIVE</p><h2>Generated reports</h2></div><span class="muted">{{ reports|length }} snapshots</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Period</th><th>Date range</th><th>Employees</th><th>Generated</th><th>Downloads</th></tr></thead><tbody>
+  {% for report in reports %}<tr><td><span class="badge open">{{ report.period }}</span></td><td>{{ report.period_start }} — {{ report.period_end }}</td><td>{{ report.employee_count }}</td><td>{{ report.generated_at|datetime_local }}</td><td><div class="download-links"><a class="primary button-link" href="{{ url_for('download_report', filename='attendance_' ~ report.period ~ '_' ~ report.period_start ~ '_' ~ report.period_end ~ '.xlsx') }}">Excel</a><a href="{{ url_for('download_report', filename='attendance_' ~ report.period ~ '_' ~ report.period_start ~ '_' ~ report.period_end ~ '.csv') }}">Summary CSV</a><a href="{{ url_for('download_report', filename='attendance_' ~ report.period ~ '_' ~ report.period_start ~ '_' ~ report.period_end ~ '_entry_exit.csv') }}">Entry/Exit CSV</a></div></td></tr>
+  {% else %}<tr><td colspan="5" class="empty">No reports generated yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

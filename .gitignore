@@ -7,6 +7,7 @@ __pycache__/
 env/
 venv/
 .venv/
+.runtime/
 ENV/
 *.egg-info/
 .eggs/
@@ -23,12 +24,17 @@ build/
 *.onnx
 *.engine
 *.weights
+models/insightface/
 runs/
 weights/
 *.cache
 detect/
 train/
 predict/
+
+# --- Local secrets ---
+firebase_credentials.json
+*firebase-adminsdk*.json
 
 # --- Datasets / media (usually too large / not meant for git) ---
 datasets/
@@ -45,6 +51,8 @@ data/
 # --- Logs ---
 *.log
 logs/
+reports/*.csv
+reports/*.xlsx
 
 # --- OS / editor junk ---
 .DS_Store
